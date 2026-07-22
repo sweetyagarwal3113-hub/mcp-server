@@ -1,0 +1,7 @@
+mcp
+langgraph
+langchain
+langchain-groq
+python-dotenv
+playwright
+nest-asyncio
