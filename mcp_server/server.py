@@ -1,12 +1,11 @@
 from mcp.server.fastmcp import FastMCP
 from browser.browser_tool import get_page_title, get_page_text, screenshot
-from paint.paint_tool import draw_shape_logic
+from paint.paint_tool import draw_shape_logic, fill_color_logic
 import pyautogui
 import time
 import subprocess
 
 mcp = FastMCP("AI Agent MCP Server")
-
 
 @mcp.tool()
 async def page_title(url: str):
@@ -32,9 +31,16 @@ async def take_screenshot(url: str):
 @mcp.tool()
 def draw_shape(shape: str) -> str:
     """
-    Draw a specific shape in MS Paint. Supported shapes: rectangle, smiley, oval.
+    Use this tool to draw a shape in MS Paint. Supported shapes: rectangle, smiley, oval.
     """
     return draw_shape_logic(shape)
+
+@mcp.tool()
+def fill_color(color: str) -> str:
+    """
+    Use this tool to fill a shape with a specific color in MS Paint. Call this AFTER calling draw_shape if the user wants to draw AND fill a shape.
+    """
+    return fill_color_logic(color)
 
 if __name__ == "__main__":
     mcp.run()

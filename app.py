@@ -55,6 +55,9 @@ async def run_agent():
             class DrawShapeArgs(BaseModel):
                 shape: str = Field(description="The name of the shape to draw (e.g., 'rectangle', 'smiley', 'oval')")
 
+            class FillColorArgs(BaseModel):
+                color: str = Field(description="The color to fill the shape with (e.g., 'red', 'blue', 'green')")
+
             # We create a generic wrapper function builder to keep loop context
             def create_tool_wrapper(tool_name, tool_desc, args_schema):
                 async def mcp_tool_proxy(**kwargs):
@@ -88,6 +91,8 @@ async def run_agent():
                     schema = AddArgs
                 elif t.name == "draw_shape":
                     schema = DrawShapeArgs
+                elif t.name == "fill_color":
+                    schema = FillColorArgs
                 
                 proxy_tool = create_tool_wrapper(t.name, t.description, schema)
                 langchain_tools.append(proxy_tool)
