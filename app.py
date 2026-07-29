@@ -1,3 +1,6 @@
+import warnings
+warnings.filterwarnings("ignore")
+
 import os
 import asyncio
 from dotenv import load_dotenv
@@ -99,30 +102,50 @@ async def run_agent():
                 print(f"Loaded tool: {t.name}")
 
             # 4. Set up the LangGraph Agent with Groq
-            llm = ChatGroq(model="llama-3.3-70b-versatile", temperature=0.2, max_retries=3)
+            llm = ChatGroq(model="llama-3.1-8b-instant", temperature=0.2, max_retries=3)
+
 
             
             profile_url = os.environ.get("LINKEDIN_PROFILE_URL", "https://www.linkedin.com/in/me/")
             base_profile_url = profile_url.split("?")[0].rstrip("/")
             my_posts_url = f"{base_profile_url}/recent-activity/all/"
             
-            system_message = f"""You are a helpful AI agent with access to browser tools. 
-You can read webpages, extract text, and take screenshots.
+            system_message = f"""You are a helpful AI agent equipped with tools for browser automation and MS Paint drawing.
 
-Here are the user's default LinkedIn URLs:
-- Profile: {profile_url}
-- My Own Posts: {my_posts_url}
-- My Feed (Home page feed): https://www.linkedin.com/feed/
-- Network/Connections: https://www.linkedin.com/mynetwork/invite-connect/connections/
+AVAILABLE TOOLS AND WHEN TO USE THEM:
+1. `read_page(url, scrolls=5)`:
+   - Use ONLY when a URL is explicitly provided by the user, OR when asked for:
+     * "my profile" / "profile" (use {profile_url})
+     * "my latest posts" / "my posts" (use {my_posts_url})
+     * "feed" / "timeline" (use https://www.linkedin.com/feed/)
+     * "connections" (use https://www.linkedin.com/mynetwork/invite-connect/connections/)
 
-Rules for URLs:
-- If the user asks for their OWN posts (e.g. "show my posts"), use the "My Own Posts" URL.
-- If the user asks for their feed or timeline, use the "My Feed" URL.
-- If the user asks to read their profile or network without a URL, automatically use the corresponding URL from the list above.
+2. `page_title(url)`:
+   - Use ONLY when asked to read a webpage title for a specific URL.
 
-If the user asks a general knowledge question unrelated to browsing, just answer using your own trained knowledge without using tools.
-When extracting information from a webpage, always do your best to summarize and format exactly what the user asks for.
+3. `take_screenshot(url)`:
+   - Use ONLY when asked to take a screenshot of a specific URL.
+
+4. `draw_shape(shape)`:
+   - Supported shapes: 'rectangle', 'oval', 'smiley'.
+   - Use ONLY when asked to draw a shape in MS Paint.
+
+5. `fill_color(color)`:
+   - Supported colors: 'red', 'blue', 'green', 'yellow', etc.
+   - Use ONLY when asked to fill a shape with color in MS Paint.
+
+STRICT EXECUTION RULES:
+- USER PROFILE & IDENTITY: If the user asks for their name ("what is my name?", "who am I?"), company/work ("what is my company name?", "where do I work?"), or profile details, call `read_page` with URL {profile_url} to extract the live name, company, and experience details directly from LinkedIn!
+- FOR GENERAL KNOWLEDGE QUESTIONS (e.g. "PM of India", "CM of Rajasthan", "What is Python?", "Hello", "Bye"): DO NOT CALL ANY TOOLS! Answer directly using text.
+- CRITICAL TOOL RULE: Call a tool AT MOST ONCE per prompt. Once a tool returns a result, IMMEDIATELY output your final response summarizing the result. DO NOT call any tool a second time!
+- If `read_page` returns `AUTH_REQUIRED`, inform the user that accessing private LinkedIn content requires logging into LinkedIn in the browser.
+- For real-world leadership updates: Prime Minister of India is **Narendra Modi**, Chief Minister of Rajasthan is **Bhajan Lal Sharma**.
 """
+
+
+
+
+
 
             agent = create_react_agent(llm, tools=langchain_tools)
 
@@ -146,7 +169,7 @@ When extracting information from a webpage, always do your best to summarize and
                     async for chunk in agent.astream({"messages": [
                         ("system", system_message),
                         ("user", user_text)
-                    ]}):
+                    ]}, config={"recursion_limit": 15}):
                         for node_name, node_output in chunk.items():
                             if "messages" in node_output:
                                 for msg in node_output["messages"]:

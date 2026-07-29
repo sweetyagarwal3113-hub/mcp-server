@@ -1,3 +1,6 @@
+import warnings
+warnings.filterwarnings("ignore")
+
 import os
 import sys
 import asyncio
@@ -31,7 +34,7 @@ def run_async(coro):
             pass
 
 st.title("🤖 AI Agent MCP Assistant")
-st.caption("Powered by LangGraph, FastMCP, Playwright & Groq Llama-3.3")
+st.caption("Powered by LangGraph, FastMCP, Playwright & Groq Llama-3.1")
 
 # Initialize chat history
 if "messages" not in st.session_state:
@@ -75,42 +78,49 @@ async def process_user_query(user_prompt: str, api_key: str):
 
     langchain_tools = [page_title_tool, read_page_tool, take_screenshot_tool, draw_shape_tool, fill_color_tool]
 
-    llm = ChatGroq(model="llama-3.3-70b-versatile", temperature=0.2, max_retries=3, groq_api_key=api_key)
+    llm = ChatGroq(model="llama-3.1-8b-instant", temperature=0.2, max_retries=3, groq_api_key=api_key)
+
 
 
     profile_url = os.environ.get("LINKEDIN_PROFILE_URL", "https://www.linkedin.com/in/me/")
     base_profile_url = profile_url.split("?")[0].rstrip("/")
     my_posts_url = f"{base_profile_url}/recent-activity/all/"
 
-    system_message = f"""You are a helpful AI agent equipped with active execution tools for browser automation and MS Paint drawing.
+    system_message = f"""You are a helpful AI agent equipped with tools for browser automation and MS Paint drawing.
 
 AVAILABLE TOOLS AND WHEN TO USE THEM:
 1. `read_page(url, scrolls=5)`:
-   - Use to read and extract text from any webpage URL.
-   - If the user asks for "my latest posts", "my posts", "latest posts", or "recent posts", ALWAYS call `read_page` using URL: {my_posts_url}
-   - If the user asks for "feed" or "timeline", call `read_page` using URL: https://www.linkedin.com/feed/
-   - If the user asks for profile info, call `read_page` using URL: {profile_url}
+   - Use ONLY when a URL is explicitly provided by the user, OR when asked for:
+     * "my profile" / "profile" (use {profile_url})
+     * "my latest posts" / "my posts" (use {my_posts_url})
+     * "feed" / "timeline" (use https://www.linkedin.com/feed/)
+     * "connections" (use https://www.linkedin.com/mynetwork/invite-connect/connections/)
 
 2. `page_title(url)`:
-   - Use to read the title of a webpage URL.
+   - Use ONLY when asked to read a webpage title for a specific URL.
 
 3. `take_screenshot(url)`:
-   - Use to capture a screenshot of a webpage URL.
+   - Use ONLY when asked to take a screenshot of a specific URL.
 
 4. `draw_shape(shape)`:
    - Supported shapes: 'rectangle', 'oval', 'smiley'.
-   - ONLY call when the user explicitly asks to draw a shape (e.g. "draw a rectangle", "make an oval", "draw a smiley").
-   - DO NOT call `draw_shape` for normal conversations, greetings, or saying goodbye!
+   - Use ONLY when asked to draw a shape in MS Paint.
 
 5. `fill_color(color)`:
    - Supported colors: 'red', 'blue', 'green', 'yellow', etc.
-   - ONLY call when the user explicitly asks to fill a shape with a color (e.g. "fill with blue").
+   - Use ONLY when asked to fill a shape with color in MS Paint.
 
-CONVERSATION RULES:
-- If the user says "bye", "goodbye", "hi", "hello", or asks "what is my name?", respond politely in text WITHOUT calling any tools!
-- DO NOT call `brave_search`.
-- For real-world leadership updates: Chief Minister of Rajasthan is **Bhajan Lal Sharma**, Prime Minister of India is **Narendra Modi**.
+STRICT EXECUTION RULES:
+- USER PROFILE & IDENTITY: If the user asks for their name ("what is my name?", "who am I?"), company/work ("what is my company name?", "where do I work?"), or profile details, call `read_page` with URL {profile_url} to extract the live name, company, and experience details directly from LinkedIn!
+- FOR GENERAL KNOWLEDGE QUESTIONS (e.g. "PM of India", "CM of Rajasthan", "What is Python?", "Hello", "Bye"): DO NOT CALL ANY TOOLS! Answer directly using text.
+- CRITICAL TOOL RULE: Call a tool AT MOST ONCE per prompt. Once a tool returns a result, IMMEDIATELY output your final response summarizing the result. DO NOT call any tool a second time!
+- If `read_page` returns `AUTH_REQUIRED`, inform the user that accessing private LinkedIn content requires logging into LinkedIn in the browser.
+- For real-world leadership updates: Prime Minister of India is **Narendra Modi**, Chief Minister of Rajasthan is **Bhajan Lal Sharma**.
 """
+
+
+
+
 
     agent = create_react_agent(llm, tools=langchain_tools)
 
@@ -119,12 +129,14 @@ CONVERSATION RULES:
         async for chunk in agent.astream({"messages": [
             ("system", system_message),
             ("user", user_prompt)
-        ]}):
+        ]}, config={"recursion_limit": 15}):
             for node_name, node_output in chunk.items():
                 if "messages" in node_output:
                     for msg in node_output["messages"]:
                         if msg.type == "ai" and msg.content:
                             final_response = msg.content
+
+
     except Exception as err:
         err_str = str(err)
         if "rate_limit_exceeded" in err_str or "429" in err_str:
