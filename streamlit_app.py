@@ -1,7 +1,6 @@
 import os
 import sys
 import asyncio
-import nest_asyncio
 import streamlit as st
 from dotenv import load_dotenv
 from langchain_groq import ChatGroq
@@ -11,10 +10,21 @@ from mcp.client.stdio import stdio_client
 from langchain_core.tools import StructuredTool
 from pydantic import BaseModel, Field
 
-nest_asyncio.apply()
 load_dotenv()
 
 st.set_page_config(page_title="AI Agent MCP Web UI", page_icon="🤖", layout="wide")
+
+def run_async(coro):
+    loop = asyncio.new_event_loop()
+    try:
+        asyncio.set_event_loop(loop)
+        return loop.run_until_complete(coro)
+    finally:
+        try:
+            loop.close()
+        except Exception:
+            pass
+
 
 st.title("🤖 AI Agent MCP Assistant")
 st.caption("Powered by LangGraph, FastMCP, Playwright & Groq Llama-3.3")
@@ -161,9 +171,10 @@ if prompt:
         else:
             with st.spinner("AI Agent is working..."):
                 try:
-                    response = asyncio.run(process_user_query(prompt))
+                    response = run_async(process_user_query(prompt))
                     st.markdown(response)
                     st.session_state.messages.append({"role": "assistant", "content": response})
                 except Exception as e:
                     st.error(f"An error occurred while running the agent: {e}")
+
 
