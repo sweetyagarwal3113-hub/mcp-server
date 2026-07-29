@@ -160,10 +160,30 @@ When extracting information from a webpage, always do your best to summarize and
                             print("-" * 20)
                     print("\n")
                 except Exception as e:
-                    if "tool_use_failed" in str(e) or "BadRequestError" in str(e):
-                        print("\n[!] The AI model made a syntax error when trying to use the tool (this is a known glitch with Groq/Llama3 tool parsing). Please just press enter and try asking your question again!")
+                    err_str = str(e)
+                    if "rate_limit_exceeded" in err_str or "429" in err_str:
+                        print("\n[!] Groq 70b rate limit hit. Switching to instant fallback model (llama-3.1-8b-instant)...")
+                        try:
+                            fallback_llm = ChatGroq(model="llama-3.1-8b-instant", temperature=0.2, max_retries=3)
+                            fallback_agent = create_react_agent(fallback_llm, tools=langchain_tools)
+                            retry_res = await fallback_agent.ainvoke({"messages": [
+                                ("system", system_message),
+                                ("user", user_text)
+                            ]})
+                            if "messages" in retry_res and retry_res["messages"]:
+                                print(f"\nAI: {retry_res['messages'][-1].content}\n")
+                        except Exception as err2:
+                            print("\n[!] Groq API Rate Limit Reached (Free Tier). Please wait 5 seconds before asking your next question!\n")
+                    elif "tool_use_failed" in err_str or "brave_search" in err_str or "BadRequestError" in err_str:
+                        print("\n[Direct Answer Fallback]:")
+                        fallback_res = await llm.ainvoke([
+                            ("system", "Answer the user's question directly based on your knowledge."),
+                            ("user", user_text)
+                        ])
+                        print(f"AI: {fallback_res.content}\n")
                     else:
                         print(f"\n[!] An error occurred: {e}")
+
 
 if __name__ == "__main__":
     # Ensure nest_asyncio is installed if using jupyter/nested loops: pip install nest-asyncio

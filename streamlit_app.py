@@ -128,9 +128,11 @@ CONVERSATION RULES:
     except Exception as err:
         err_str = str(err)
         if "rate_limit_exceeded" in err_str or "429" in err_str:
-            await asyncio.sleep(4)
+            # Fallback to ultra-fast high-capacity llama-3.1-8b-instant model to bypass 70b rate limits!
             try:
-                retry_res = await agent.ainvoke({"messages": [
+                fallback_llm = ChatGroq(model="llama-3.1-8b-instant", temperature=0.2, groq_api_key=api_key)
+                fallback_agent = create_react_agent(fallback_llm, tools=langchain_tools)
+                retry_res = await fallback_agent.ainvoke({"messages": [
                     ("system", system_message),
                     ("user", user_prompt)
                 ]})
@@ -146,6 +148,7 @@ CONVERSATION RULES:
             return fallback_res.content
         else:
             raise err
+
 
     return final_response if final_response else "Completed query execution."
 
