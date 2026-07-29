@@ -1,9 +1,9 @@
 from mcp.server.fastmcp import FastMCP
 from browser.browser_tool import get_page_title, get_page_text, screenshot
 from paint.paint_tool import draw_shape_logic, fill_color_logic
-import pyautogui
 import time
 import subprocess
+
 
 mcp = FastMCP("AI Agent MCP Server")
 

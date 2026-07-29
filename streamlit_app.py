@@ -138,6 +138,17 @@ Rules for URLs:
 
             return final_response
 
+groq_api_key = os.getenv("GROQ_API_KEY")
+
+with st.sidebar:
+    st.header("⚙️ Configuration")
+    if not groq_api_key:
+        groq_api_key = st.text_input("Enter Groq API Key:", type="password")
+        if groq_api_key:
+            os.environ["GROQ_API_KEY"] = groq_api_key
+    else:
+        st.success("GROQ_API_KEY detected!")
+
 prompt = st.chat_input("Ask the AI Agent anything (e.g. Read https://example.com)...")
 if prompt:
     st.session_state.messages.append({"role": "user", "content": prompt})
@@ -145,8 +156,14 @@ if prompt:
         st.markdown(prompt)
 
     with st.chat_message("assistant"):
-        with st.spinner("AI Agent is working..."):
-            response = asyncio.run(process_user_query(prompt))
-            st.markdown(response)
+        if not os.getenv("GROQ_API_KEY"):
+            st.error("Please provide a GROQ_API_KEY in the sidebar or in Streamlit Secrets!")
+        else:
+            with st.spinner("AI Agent is working..."):
+                try:
+                    response = asyncio.run(process_user_query(prompt))
+                    st.markdown(response)
+                    st.session_state.messages.append({"role": "assistant", "content": response})
+                except Exception as e:
+                    st.error(f"An error occurred while running the agent: {e}")
 
-    st.session_state.messages.append({"role": "assistant", "content": response})

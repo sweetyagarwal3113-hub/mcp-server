@@ -1,16 +1,23 @@
 import subprocess
 import time
-import pyautogui
+
+try:
+    import pyautogui
+except Exception:
+    pyautogui = None
 
 
 def _ensure_paint_running():
     """Connect to an existing MS Paint instance or launch a new one.
     Returns the pywinauto Application and Window objects.
     """
+    if pyautogui is None:
+        return None, None, "MS Paint and PyAutoGUI GUI automation is only supported in desktop Windows environments."
     try:
         from pywinauto.application import Application
     except ImportError:
         return None, None, "Please install pywinauto first by running: pip install pywinauto"
+
     try:
         app = Application(backend="uia").connect(title_re=".*Paint")
         window = app.window(title_re=".*Paint")

@@ -1,16 +1,26 @@
 import os
+import sys
 from playwright.async_api import async_playwright
 
-IS_HEADLESS = os.getenv("HEADLESS", "false").lower() in ["true", "1", "yes"]
-EXTRA_ARGS = ["--no-sandbox", "--disable-setuid-sandbox"]
+IS_HEADLESS = os.getenv("HEADLESS", "true" if sys.platform != "win32" else "false").lower() in ["true", "1", "yes"]
+EXTRA_ARGS = ["--no-sandbox", "--disable-setuid-sandbox", "--disable-dev-shm-usage"]
+
+def get_launch_kwargs():
+    kwargs = {
+        "user_data_dir": "playwright_profile",
+        "headless": IS_HEADLESS,
+        "args": EXTRA_ARGS
+    }
+    # Check for system installed chromium on Linux / Streamlit Cloud
+    for path in ["/usr/bin/chromium", "/usr/bin/chromium-browser"]:
+        if os.path.exists(path):
+            kwargs["executable_path"] = path
+            break
+    return kwargs
 
 async def get_page_title(url: str):
     async with async_playwright() as p:
-        browser = await p.chromium.launch_persistent_context(
-            user_data_dir="playwright_profile",
-            headless=IS_HEADLESS,
-            args=EXTRA_ARGS
-        )
+        browser = await p.chromium.launch_persistent_context(**get_launch_kwargs())
         page = browser.pages[0] if browser.pages else await browser.new_page()
         await page.goto(url)
         title = await page.title()
@@ -19,11 +29,7 @@ async def get_page_title(url: str):
 
 async def get_page_text(url: str, scrolls: int = 5):
     async with async_playwright() as p:
-        browser = await p.chromium.launch_persistent_context(
-            user_data_dir="playwright_profile",
-            headless=IS_HEADLESS,
-            args=EXTRA_ARGS
-        )
+        browser = await p.chromium.launch_persistent_context(**get_launch_kwargs())
         page = browser.pages[0] if browser.pages else await browser.new_page()
         await page.goto(url)
         
@@ -59,14 +65,11 @@ async def get_page_text(url: str, scrolls: int = 5):
 
 async def screenshot(url):
     async with async_playwright() as p:
-        browser = await p.chromium.launch_persistent_context(
-            user_data_dir="playwright_profile",
-            headless=IS_HEADLESS,
-            args=EXTRA_ARGS
-        )
+        browser = await p.chromium.launch_persistent_context(**get_launch_kwargs())
         page = browser.pages[0] if browser.pages else await browser.new_page()
         await page.goto(url)
         await page.wait_for_timeout(3000)
         await page.screenshot(path="page.png")
         await browser.close()
-        return "Screenshot saved."
+        return "Screenshot saved."
+
