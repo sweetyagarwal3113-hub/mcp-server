@@ -1,8 +1,16 @@
+import os
 from playwright.async_api import async_playwright
+
+IS_HEADLESS = os.getenv("HEADLESS", "false").lower() in ["true", "1", "yes"]
+EXTRA_ARGS = ["--no-sandbox", "--disable-setuid-sandbox"]
 
 async def get_page_title(url: str):
     async with async_playwright() as p:
-        browser = await p.chromium.launch_persistent_context(user_data_dir="playwright_profile", headless=False)
+        browser = await p.chromium.launch_persistent_context(
+            user_data_dir="playwright_profile",
+            headless=IS_HEADLESS,
+            args=EXTRA_ARGS
+        )
         page = browser.pages[0] if browser.pages else await browser.new_page()
         await page.goto(url)
         title = await page.title()
@@ -11,12 +19,16 @@ async def get_page_title(url: str):
 
 async def get_page_text(url: str, scrolls: int = 5):
     async with async_playwright() as p:
-        browser = await p.chromium.launch_persistent_context(user_data_dir="playwright_profile", headless=False)
+        browser = await p.chromium.launch_persistent_context(
+            user_data_dir="playwright_profile",
+            headless=IS_HEADLESS,
+            args=EXTRA_ARGS
+        )
         page = browser.pages[0] if browser.pages else await browser.new_page()
         await page.goto(url)
         
         # Wait for user to log in if they hit the auth wall
-        if "Sign In" in await page.title() or "LinkedIn Login" in await page.title() or "Feed" not in await page.title() and "LinkedIn" in await page.title():
+        if not IS_HEADLESS and ("Sign In" in await page.title() or "LinkedIn Login" in await page.title() or ("Feed" not in await page.title() and "LinkedIn" in await page.title())):
             print("\n*** ACTION REQUIRED: Please log in to LinkedIn in the opened browser window! You have 60 seconds. ***\n")
             try:
                 await page.wait_for_timeout(30000) # Give 30s to log in manually the first time
@@ -47,10 +59,14 @@ async def get_page_text(url: str, scrolls: int = 5):
 
 async def screenshot(url):
     async with async_playwright() as p:
-        browser = await p.chromium.launch_persistent_context(user_data_dir="playwright_profile", headless=False)
+        browser = await p.chromium.launch_persistent_context(
+            user_data_dir="playwright_profile",
+            headless=IS_HEADLESS,
+            args=EXTRA_ARGS
+        )
         page = browser.pages[0] if browser.pages else await browser.new_page()
         await page.goto(url)
         await page.wait_for_timeout(3000)
         await page.screenshot(path="page.png")
         await browser.close()
-        return "Screenshot saved."
+        return "Screenshot saved."
