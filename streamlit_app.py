@@ -75,7 +75,8 @@ async def process_user_query(user_prompt: str, api_key: str):
 
     langchain_tools = [page_title_tool, read_page_tool, take_screenshot_tool, draw_shape_tool, fill_color_tool]
 
-    llm = ChatGroq(model="llama-3.3-70b-versatile", temperature=0.2, groq_api_key=api_key)
+    llm = ChatGroq(model="llama-3.3-70b-versatile", temperature=0.2, max_retries=3, groq_api_key=api_key)
+
 
     profile_url = os.environ.get("LINKEDIN_PROFILE_URL", "https://www.linkedin.com/in/me/")
     base_profile_url = profile_url.split("?")[0].rstrip("/")

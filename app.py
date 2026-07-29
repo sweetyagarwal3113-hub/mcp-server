@@ -99,7 +99,8 @@ async def run_agent():
                 print(f"Loaded tool: {t.name}")
 
             # 4. Set up the LangGraph Agent with Groq
-            llm = ChatGroq(model="llama-3.3-70b-versatile", temperature=0.2)
+            llm = ChatGroq(model="llama-3.3-70b-versatile", temperature=0.2, max_retries=3)
+
             
             profile_url = os.environ.get("LINKEDIN_PROFILE_URL", "https://www.linkedin.com/in/me/")
             base_profile_url = profile_url.split("?")[0].rstrip("/")
